@@ -1,0 +1,12 @@
+{
+  "name": "token-counter-toy-recorder",
+  "private": true,
+  "type": "module",
+  "description": "Records docs/demo.gif. Not required to run the toy.",
+  "scripts": {
+    "record": "node record-demo.mjs"
+  },
+  "dependencies": {
+    "playwright": "1.64.1"
+  }
+}

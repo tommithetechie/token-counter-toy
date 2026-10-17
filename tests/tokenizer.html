@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tokenizer check</title>
+  <style>
+    :root {
+      color: #24180c;
+      background: #f6f0e4;
+      font: 16px/1.45 ui-sans-serif, system-ui, sans-serif;
+    }
+    body { margin: 1.5rem; }
+    h1 { font-size: 1.25rem; margin: 0 0 0.5rem; }
+    p { margin: 0.4rem 0 1rem; }
+    textarea {
+      width: 100%;
+      min-height: 6rem;
+      box-sizing: border-box;
+      font: inherit;
+    }
+    #chips {
+      min-height: 3rem;
+      margin: 0.75rem 0 1rem;
+      padding: 0.5rem;
+      background: #fffdf8;
+      border: 1px solid #e4d7c2;
+      border-radius: 0.4rem;
+    }
+    #report { white-space: pre-wrap; font-family: ui-monospace, monospace; font-size: 0.9rem; }
+    .pass { color: #0d6b45; }
+    .fail { color: #9d1c1c; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <h1>Tokenizer and chips</h1>
+  <p>Paste text. Tokens render below. The self-check runs on load.</p>
+  <textarea id="input">Hello, world! 👋
+line two	tabbed</textarea>
+  <div id="chips"></div>
+  <div id="report">Loading tokenizer…</div>
+  <script type="module">
+    import { ENCODING, tokenize } from '../js/tokenizer.js';
+    import { renderChips } from '../js/chips.js';
+
+    const input = document.querySelector('#input');
+    const chips = document.querySelector('#chips');
+    const report = document.querySelector('#report');
+
+    let generation = 0;
+    async function paint() {
+      const gen = ++generation;
+      const text = input.value;
+      const tokens = await tokenize(text);
+      if (gen !== generation) return;
+      renderChips(chips, tokens);
+    }
+
+    input.addEventListener('input', () => {
+      paint().catch((error) => {
+        report.textContent = error.stack || String(error);
+        report.className = 'fail';
+      });
+    });
+
+    function assert(condition, message) {
+      if (!condition) throw new Error(message);
+    }
+
+    async function selfCheck() {
+      const lines = [];
+      const check = async (name, fn) => {
+        await fn();
+        lines.push('ok  ' + name);
+      };
+
+      assert(ENCODING === 'o200k_base', 'encoding name');
+
+      await check('empty string', async () => {
+        const tokens = await tokenize('');
+        assert(tokens.length === 0, 'empty should have no tokens');
+      });
+
+      await check('non-string', async () => {
+        const tokens = await tokenize(null);
+        assert(tokens.length === 0, 'null should have no tokens');
+      });
+
+      await check('Hello, world! ids', async () => {
+        const text = 'Hello, world!';
+        const tokens = await tokenize(text);
+        assert(tokens.map((t) => t.text).join('') === text, 'round-trip');
+        assert(tokens.map((t) => t.id).join(',') === '13225,11,2375,0', 'o200k ids');
+      });
+
+      await check('emoji fragments', async () => {
+        const text = '👋';
+        const tokens = await tokenize(text);
+        assert(tokens.map((t) => t.id).join(',') === '28823,233', 'wave ids');
+        assert(tokens.map((t) => t.text).join('') === text, 'emoji round-trip');
+        assert(tokens[0].text === '' && tokens[1].text === '👋', 'fragment stays empty until the character completes');
+        assert(!tokens.some((t) => t.text.includes('\uFFFD')), 'no replacement char');
+        const host = document.createElement('div');
+        document.body.appendChild(host);
+        renderChips(host, tokens);
+        const rendered = [...host.querySelectorAll('.chip')];
+        assert(rendered.length === tokens.length, 'one chip per emoji token');
+        assert(rendered[0].classList.contains('chip--empty'), 'fragment chip takes no space');
+        assert(rendered[0].title === '28823', 'fragment chip keeps its id');
+        assert(rendered[1].textContent === '👋', 'emoji chip shows the character');
+        host.remove();
+      });
+
+      await check('family emoji and CJK', async () => {
+        for (const text of ['👨‍👩‍👧‍👦', '🧑‍🚒', 'こんにちは', '你好世界', 'café — €', '한글']) {
+          const tokens = await tokenize(text);
+          assert(tokens.map((t) => t.text).join('') === text, 'round-trip ' + text);
+          assert(tokens.every((t) => Number.isInteger(t.id)), 'integer ids');
+        }
+      });
+
+      await check('whitespace tokens', async () => {
+        const text = 'a\n\nb\tc  d \n';
+        const tokens = await tokenize(text);
+        assert(tokens.map((t) => t.text).join('') === text, 'whitespace round-trip');
+        assert(tokens.some((t) => t.text.includes('\n')), 'newline kept on a token');
+        assert(tokens.some((t) => t.text.includes('\t') || t.text.includes(' ')), 'space or tab kept');
+      });
+
+      await check('special token', async () => {
+        const text = 'say <|endoftext|> now';
+        const tokens = await tokenize(text);
+        assert(tokens.map((t) => t.text).join('') === text, 'special round-trip');
+        assert(tokens.some((t) => t.id === 199999 && t.text === '<|endoftext|>'), 'endoftext id');
+      });
+
+      await check('a few thousand tokens', async () => {
+        const text = 'The quick brown fox jumps over the lazy dog. 👋\n'.repeat(400);
+        const started = performance.now();
+        const tokens = await tokenize(text);
+        const elapsed = performance.now() - started;
+        assert(tokens.length > 3000, 'expected thousands of tokens, got ' + tokens.length);
+        assert(tokens.map((t) => t.text).join('') === text, 'bulk round-trip');
+        assert(elapsed < 1500, 'tokenize too slow: ' + elapsed.toFixed(0) + 'ms');
+        const paintStarted = performance.now();
+        const host = document.createElement('div');
+        document.body.appendChild(host);
+        renderChips(host, tokens);
+        const paintElapsed = performance.now() - paintStarted;
+        assert(host.querySelectorAll('.chip').length >= tokens.length, 'a chip per token');
+        assert(paintElapsed < 1500, 'render too slow: ' + paintElapsed.toFixed(0) + 'ms');
+        host.remove();
+        lines.push('    ' + tokens.length + ' tokens in ' + elapsed.toFixed(0) + 'ms, painted in ' + paintElapsed.toFixed(0) + 'ms');
+      });
+
+      await check('chip colors, titles, newlines', async () => {
+        const text = 'Hello 👋\nnext';
+        const tokens = await tokenize(text);
+        const host = document.createElement('div');
+        document.body.appendChild(host);
+        renderChips(host, tokens);
+        const rendered = host.querySelectorAll('.chip');
+        assert(rendered.length >= tokens.length, 'chip count');
+        const colors = new Set([...rendered].map((node) => [...node.classList].find((c) => /^chip--\d$/.test(c))));
+        assert(colors.size >= 2, 'cycles color classes');
+        for (const node of rendered) {
+          assert(/^chip--[0-5]$/.test([...node.classList].find((c) => /^chip--\d$/.test(c)) || ''), 'color class in range');
+          assert(node.title.length > 0, 'title shows token id');
+          assert(!Number.isNaN(Number(node.title)), 'title is the id');
+        }
+        assert(host.querySelector('br'), 'newline becomes a line break');
+        const space = [...rendered].find((node) => node.textContent.includes(' '));
+        assert(space, 'space token is present');
+        const style = getComputedStyle(space);
+        assert(style.display === 'inline-block', 'chip is inline-block');
+        assert(style.whiteSpace === 'pre-wrap', 'whitespace preserved');
+        assert(parseFloat(style.paddingLeft) > 0, 'chip has padding');
+        assert(parseFloat(style.borderRadius) > 0, 'chip has radius');
+        host.remove();
+      });
+
+      await paint();
+      lines.push('ok  live preview');
+      report.textContent = lines.join('\n');
+      report.className = 'pass';
+      document.title = 'Tokenizer check: pass';
+    }
+
+    selfCheck().catch((error) => {
+      report.textContent = (report.textContent ? report.textContent + '\n' : '') + (error.stack || String(error));
+      report.className = 'fail';
+      document.title = 'Tokenizer check: fail';
+    });
+  </script>
+</body>
+</html>

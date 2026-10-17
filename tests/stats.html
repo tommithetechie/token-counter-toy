@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Stats panel check</title>
+    <style>
+      body {
+        font: 16px/1.45 sans-serif;
+        margin: 1.5rem;
+        color: #222;
+      }
+      #stats {
+        max-width: 32rem;
+        padding: 1rem;
+        border: 1px solid #bbb;
+      }
+      .stat {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        margin: 0.35rem 0;
+      }
+      .stat__select {
+        max-width: 18rem;
+      }
+      .stat__note {
+        margin: 0.75rem 0 0;
+        font-size: 0.85rem;
+        color: #444;
+      }
+      li.pass {
+        color: #146c2e;
+      }
+      li.fail {
+        color: #a40000;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Stats panel</h1>
+    <div id="stats"></div>
+    <h2>Checks</h2>
+    <ul id="checks"></ul>
+    <p id="summary"></p>
+    <script type="module">
+      import { resolveModel } from "../js/pricing.js";
+      import {
+        MODEL_STORAGE_KEY,
+        formatUsd,
+        estimateCost,
+        renderStats,
+      } from "../js/stats.js";
+
+      const checks = document.querySelector("#checks");
+      const summary = document.querySelector("#summary");
+      const container = document.querySelector("#stats");
+      const failures = [];
+
+      function check(name, ok) {
+        const item = document.createElement("li");
+        item.className = ok ? "pass" : "fail";
+        item.textContent = `${ok ? "pass" : "fail"} — ${name}`;
+        checks.append(item);
+        if (!ok) failures.push(name);
+      }
+
+      const previousModel = localStorage.getItem(MODEL_STORAGE_KEY);
+      try {
+        localStorage.removeItem(MODEL_STORAGE_KEY);
+
+        const text = "Hello, world";
+        const tokens = [
+          { text: "Hello", id: 0 },
+          { text: ",", id: 1 },
+          { text: " world", id: 2 },
+        ];
+        renderStats(container, { tokens, text });
+
+        const value = (key) =>
+          container.querySelector(`[data-stat="${key}"] .stat__value`)?.textContent;
+        const select = container.querySelector("select");
+        const mini = resolveModel("gpt-4o-mini");
+
+        check("renders token count", value("tokens") === "3");
+        check("renders character count", value("characters") === "12");
+        check("renders word count", value("words") === "2");
+        check(
+          "renders rough estimate for the default model",
+          value("cost") === formatUsd(estimateCost(3, mini.inputPerMillion)),
+        );
+        check("labels the figure Rough estimate", container.textContent.includes("Rough estimate"));
+        check("uses stat class names", container.querySelectorAll(".stat .stat__label").length >= 4
+          && container.querySelectorAll(".stat .stat__value").length === 4);
+        check("defaults the model picker", select?.value === mini.id);
+
+        const graphemeText = "cafe\u0301";
+        renderStats(container, {
+          tokens: [{ text: graphemeText, id: 0 }],
+          text: graphemeText,
+        });
+        check(
+          "counts graphemes in the panel",
+          container.querySelector('[data-stat="characters"] .stat__value')?.textContent === "4",
+        );
+
+        renderStats(container, { tokens, text });
+        const liveSelect = container.querySelector("select");
+        const liveCost = container.querySelector('[data-stat="cost"] .stat__value');
+        liveSelect.value = "gpt-6-astra";
+        liveSelect.dispatchEvent(new Event("change"));
+        const astra = resolveModel("gpt-6-astra");
+        check(
+          "updates the estimate when the model changes",
+          liveCost.textContent === formatUsd(estimateCost(tokens.length, astra.inputPerMillion)),
+        );
+        check("remembers the model", localStorage.getItem(MODEL_STORAGE_KEY) === "gpt-6-astra");
+
+        renderStats(container, { tokens, text });
+        check(
+          "restores the remembered model",
+          container.querySelector("select")?.value === "gpt-6-astra",
+        );
+        check(
+          "keeps the remembered estimate",
+          container.querySelector('[data-stat="cost"] .stat__value')?.textContent ===
+            formatUsd(estimateCost(tokens.length, astra.inputPerMillion)),
+        );
+
+        renderStats(container, { tokens: [], text: "   " });
+        check("empty input shows zero tokens", container.querySelector('[data-stat="tokens"] .stat__value')?.textContent === "0");
+        check("blank text shows zero words", container.querySelector('[data-stat="words"] .stat__value')?.textContent === "0");
+        check("blank text costs $0.00", container.querySelector('[data-stat="cost"] .stat__value')?.textContent === "$0.00");
+      } catch (error) {
+        check(error instanceof Error ? error.message : String(error), false);
+      } finally {
+        if (previousModel == null) localStorage.removeItem(MODEL_STORAGE_KEY);
+        else localStorage.setItem(MODEL_STORAGE_KEY, previousModel);
+      }
+
+      const demoText = "Hello, world";
+      renderStats(container, {
+        tokens: [
+          { text: "Hello", id: 0 },
+          { text: ",", id: 1 },
+          { text: " world", id: 2 },
+        ],
+        text: demoText,
+      });
+
+      const status = failures.length === 0 ? "pass" : "fail";
+      document.documentElement.dataset.status = status;
+      summary.textContent = status === "pass"
+        ? "All checks passed."
+        : `${failures.length} check(s) failed.`;
+    </script>
+  </body>
+</html>

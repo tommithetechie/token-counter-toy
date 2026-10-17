@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Token Counter Toy — style preview</title>
+  <link rel="stylesheet" href="css/crt.css">
+</head>
+<body>
+  <main id="app">
+    <h1>Token Counter Toy</h1>
+    <label for="input">Paste</label>
+    <textarea id="input" rows="5" autocomplete="off" spellcheck="false">The quick brown fox jumps over the lazy dog. Tokens glow on the glass like stickers.</textarea>
+    <div id="chips" aria-label="Token chips">
+      <span class="chip chip--0">The</span>
+      <span class="chip chip--1">quick</span>
+      <span class="chip chip--2">brown</span>
+      <span class="chip chip--3">fox</span>
+      <span class="chip chip--4">jumps</span>
+      <span class="chip chip--5">over</span>
+      <span class="chip chip--0">the</span>
+      <span class="chip chip--1">lazy</span>
+      <span class="chip chip--2">dog</span>
+      <span class="chip chip--3">.</span>
+      <span class="chip chip--4"> </span>
+      <span class="chip chip--5">supercalifragilisticexpialidocious</span>
+    </div>
+    <section id="stats">
+      <div class="stat">
+        <span class="stat__label">Tokens</span>
+        <span class="stat__value">12</span>
+      </div>
+      <div class="stat">
+        <span class="stat__label">Characters</span>
+        <span class="stat__value">86</span>
+      </div>
+      <div class="stat">
+        <span class="stat__label">Est. cost</span>
+        <span class="stat__value">$0.002</span>
+      </div>
+      <label>
+        Model
+        <select>
+          <option>Toy mini</option>
+          <option>Toy standard</option>
+          <option selected>Toy plus</option>
+        </select>
+      </label>
+    </section>
+    <button type="button">Clear</button>
+  </main>
+</body>
+</html>

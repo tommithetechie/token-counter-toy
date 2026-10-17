@@ -3,13 +3,12 @@
  * Record docs/demo.gif.
  *
  * Serves the repo, types a sample into #input, and writes a looping GIF.
- * Opens index.html when it exists, otherwise tools/demo-fixture.html.
+ * Opens index.html.
  *
  * From the repo root, after `npm install` and `npx playwright install chromium`
  * inside tools/:
  *
  *   node tools/record-demo.mjs
- *   node tools/record-demo.mjs --page tools/demo-fixture.html
  *   node tools/record-demo.mjs --out docs/demo.gif --text "Hello tokens"
  *
  * Requires ffmpeg on PATH. The GIF is kept under 3 MB.
@@ -43,6 +42,8 @@ const MIME = {
   ".webp": "image/webp",
   ".wasm": "application/wasm",
   ".map": "application/json",
+  ".woff": "font/woff",
+  ".woff2": "font/woff2",
 };
 
 function readFlag(args, name) {
@@ -55,12 +56,14 @@ function readFlag(args, name) {
   return value;
 }
 
-function defaultPage() {
+async function defaultPage() {
   const appPage = path.join(repoRoot, "index.html");
-  return fs
-    .access(appPage)
-    .then(() => "index.html")
-    .catch(() => "tools/demo-fixture.html");
+  try {
+    await fs.access(appPage);
+  } catch {
+    throw new Error("index.html is missing; the recorder needs the real page");
+  }
+  return "index.html";
 }
 
 function startServer(root) {
@@ -103,20 +106,46 @@ function startServer(root) {
   });
 }
 
-async function encodeGif(framesDir, outFile, maxColors) {
-  const vf = [
-    "scale=760:-1:flags=lanczos,split[s0][s1]",
-    `[s0]palettegen=max_colors=${maxColors}:stats_mode=diff[p]`,
-    "[s1][p]paletteuse=dither=bayer:bayer_scale=3:diff_mode=rectangle",
-  ].join(";");
+async function encodeGif(framesDir, outFile, maxColors, width) {
+  const source = path.join(framesDir, "frame-%03d.png");
+  const scaledDir = path.join(framesDir, "scaled");
+  const scaled = path.join(scaledDir, "frame-%03d.png");
+  const palette = path.join(framesDir, "palette.png");
+  await fs.mkdir(scaledDir, { recursive: true });
+  // Scale first, then build a palette, then apply it. Combining those in one
+  // filter graph drops frames or crashes on ffmpeg 6.
+  await execFileAsync("ffmpeg", [
+    "-y",
+    "-i",
+    source,
+    "-vf",
+    `scale=${width}:-1:flags=lanczos`,
+    scaled,
+  ]);
   await execFileAsync("ffmpeg", [
     "-y",
     "-framerate",
     "5",
     "-i",
-    path.join(framesDir, "frame-%03d.png"),
+    scaled,
     "-vf",
-    vf,
+    `palettegen=max_colors=${maxColors}:stats_mode=diff:reserve_transparent=0`,
+    palette,
+  ]);
+  await execFileAsync("ffmpeg", [
+    "-y",
+    "-framerate",
+    "5",
+    "-thread_queue_size",
+    "1024",
+    "-i",
+    scaled,
+    "-i",
+    palette,
+    "-filter_complex",
+    "[0:v][1:v]paletteuse=dither=bayer:bayer_scale=2",
+    "-r",
+    "5",
     "-loop",
     "0",
     outFile,
@@ -169,29 +198,45 @@ async function main() {
     await input.click();
     const chunks = sample.split(/(\s+)/).filter(Boolean);
     for (const chunk of chunks) {
-      await input.pressSequentially(chunk, { delay: 12 });
-      await page.waitForTimeout(80);
+      const lines = chunk.split("\n");
+      for (let index = 0; index < lines.length; index += 1) {
+        if (lines[index]) await input.pressSequentially(lines[index], { delay: 12 });
+        if (index < lines.length - 1) await input.press("Enter");
+      }
+      await page.waitForTimeout(200);
       await capture(2);
     }
-    await page.waitForTimeout(200);
+    await page.locator("#chips .chip, #chips .fallback-token").first().waitFor({
+      state: "visible",
+      timeout: 20_000,
+    });
+    await page.waitForTimeout(250);
     await capture(10);
 
-    try {
-      await encodeGif(framesDir, outFile, 64);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      if (message.includes("ENOENT")) {
-        throw new Error("ffmpeg is required to encode the GIF and was not found on PATH");
+    const presets = [
+      { width: 760, colors: 64 },
+      { width: 640, colors: 48 },
+      { width: 520, colors: 32 },
+    ];
+    let size = 0;
+    let encoded = false;
+    for (const preset of presets) {
+      try {
+        await encodeGif(framesDir, outFile, preset.colors, preset.width);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (message.includes("ENOENT")) {
+          throw new Error("ffmpeg is required to encode the GIF and was not found on PATH");
+        }
+        throw error;
       }
-      throw error;
-    }
-
-    let size = (await fs.stat(outFile)).size;
-    if (size > MAX_BYTES) {
-      await encodeGif(framesDir, outFile, 32);
       size = (await fs.stat(outFile)).size;
+      if (size <= MAX_BYTES) {
+        encoded = true;
+        break;
+      }
     }
-    if (size > MAX_BYTES) {
+    if (!encoded) {
       throw new Error(`GIF is ${size} bytes, over the ${MAX_BYTES} byte limit`);
     }
 

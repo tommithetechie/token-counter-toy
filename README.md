@@ -6,8 +6,6 @@ Paste text and watch it split into colored token chips, right in your browser.
 
 ![Typing a sentence and watching it split into colored token chips](docs/demo.gif)
 
-The clip was recorded with `tools/record-demo.mjs` from the stand-in page `tools/demo-fixture.html`, so the docs could land before the rest of the app. That page uses a simple stand-in split, not the real tokenizer. Run the script again once `index.html` is in place and the GIF will show the real page.
-
 ## What it does
 
 You type or paste text. The page splits it into tokens, draws each token as a colored chip, and shows:
@@ -78,7 +76,7 @@ cd ..
 node tools/record-demo.mjs
 ```
 
-`ffmpeg` needs to be on your PATH. The script opens `index.html` when that file exists, and `tools/demo-fixture.html` otherwise. The fixture is a throwaway page for recording before the app files are merged. It is not the toy.
+`ffmpeg` needs to be on your PATH. The script serves this repo and opens `index.html`.
 
 ## Credits
 

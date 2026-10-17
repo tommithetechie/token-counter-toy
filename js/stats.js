@@ -146,6 +146,7 @@ export function renderStats(container, source) {
     const option = document.createElement("option");
     option.value = model.id;
     option.textContent = modelOptionLabel(model);
+    option.title = modelOptionTitle(model);
     select.append(option);
   }
   select.value = selected.id;
@@ -209,9 +210,17 @@ function statRow(key, label, value) {
  * @returns {string}
  */
 function modelOptionLabel(model) {
-  const price = `${rateFormatter.format(model.inputPerMillion)} / 1M`;
-  if (model.scope) return `${model.label} (${price}, ${model.scope})`;
-  return `${model.label} (${price})`;
+  return `${model.label} · ${rateFormatter.format(model.inputPerMillion)}/1M`;
+}
+
+/**
+ * @param {{ label: string, inputPerMillion: number, scope?: string }} model
+ * @returns {string}
+ */
+function modelOptionTitle(model) {
+  const price = `${rateFormatter.format(model.inputPerMillion)} per 1M input tokens`;
+  if (model.scope) return `${model.label}, ${price}, ${model.scope}`;
+  return `${model.label}, ${price}`;
 }
 
 function readModelId() {

@@ -1,16 +1,16 @@
 /**
  * Render tokenizer output as colored inline chips.
  *
- * Structure only lives here (inline-block, padding, radius, whitespace).
- * Theme colors come from `--chip-0` … `--chip-5`, with light fallbacks so
- * chips stay readable before the CRT stylesheet sets those variables.
- * `--chip-ink` optionally overrides the text color.
+ * Structure lives in the `token-chips` layer (inline-block, padding, radius,
+ * whitespace) so a theme stylesheet can restyle the chips. Colors come from
+ * `--chip-0` … `--chip-5`, with light fallbacks used until those variables
+ * are set. `--chip-ink` optionally overrides the text color.
  */
 
 const COLOR_COUNT = 6;
 const STYLE_ID = 'token-chip-styles';
 
-const CHIP_CSS = `
+const CHIP_CSS = `@layer token-chips {
 .chip {
   display: inline-block;
   box-sizing: border-box;
@@ -36,6 +36,7 @@ const CHIP_CSS = `
   padding: 0;
   border-radius: 0;
   background: transparent;
+}
 }
 `;
 

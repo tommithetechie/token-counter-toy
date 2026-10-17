@@ -99,10 +99,7 @@ main {
 }
 
 #chips {
-  display: flex;
-  flex-wrap: wrap;
-  align-content: flex-start;
-  gap: 0.35rem;
+  display: block;
   min-width: 0;
   min-height: 4.5rem;
   overflow-wrap: anywhere;
@@ -114,10 +111,12 @@ main {
   justify-content: center;
   min-width: 2.25rem;
   min-height: 2rem;
+  margin: 0.15rem;
   padding: 0.2rem 0.55rem;
   border: 1px solid;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+  vertical-align: middle;
 }
 
 @media (min-width: 48rem) {

@@ -1,0 +1,142 @@
+/* Neutral layout only. Theme colors live in crt.css. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: system-ui, sans-serif;
+  line-height: 1.5;
+  overflow-wrap: break-word;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  width: min(100% - 2rem, 72rem);
+  min-height: 100vh;
+  margin-inline: auto;
+  padding-block: 1.25rem;
+}
+
+header,
+footer {
+  flex: 0 0 auto;
+}
+
+header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+header h1 {
+  margin: 0;
+  font-size: clamp(1.5rem, 2.5vw, 2rem);
+  line-height: 1.2;
+}
+
+header p,
+footer p,
+.composer label,
+.empty {
+  margin: 0;
+}
+
+footer {
+  margin-top: auto;
+  font-size: 0.875rem;
+}
+
+main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+  flex: 1 1 auto;
+}
+
+.composer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+#input {
+  width: 100%;
+  min-height: 12rem;
+  margin: 0;
+  padding: 0.75rem;
+  font: inherit;
+  line-height: 1.45;
+  resize: vertical;
+}
+
+#stats {
+  min-width: 0;
+  min-height: 6rem;
+}
+
+#stats dl {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.35rem 1rem;
+  margin: 0;
+}
+
+#stats dt,
+#stats dd {
+  margin: 0;
+}
+
+#chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 0.35rem;
+  min-width: 0;
+  min-height: 4.5rem;
+  overflow-wrap: anywhere;
+}
+
+.fallback-token {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.25rem;
+  min-height: 2rem;
+  padding: 0.2rem 0.55rem;
+  border: 1px solid;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+@media (min-width: 48rem) {
+  main {
+    grid-template-columns: minmax(0, 1.7fr) minmax(14rem, 1fr);
+    grid-template-areas:
+      "composer stats"
+      "chips chips";
+  }
+
+  .composer {
+    grid-area: composer;
+  }
+
+  #stats {
+    grid-area: stats;
+  }
+
+  #chips {
+    grid-area: chips;
+  }
+}

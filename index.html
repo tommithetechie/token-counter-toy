@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Token Counter Toy</title>
+    <meta
+      name="description"
+      content="Paste text and see it split into tokens, with a count and a rough cost estimate."
+    >
+    <link rel="stylesheet" href="./css/base.css">
+    <link rel="stylesheet" href="./css/crt.css">
+  </head>
+  <body>
+    <div id="app">
+      <header>
+        <h1>Token Counter Toy</h1>
+        <p>Paste text and see it split into tokens.</p>
+      </header>
+
+      <main>
+        <div class="composer">
+          <label for="input">Text</label>
+          <textarea
+            id="input"
+            rows="10"
+            placeholder="Paste or type text here"
+            autocomplete="off"
+            autocapitalize="off"
+            spellcheck="false"
+          ></textarea>
+        </div>
+
+        <section id="stats" aria-live="polite" aria-label="Token statistics"></section>
+        <section id="chips" aria-live="polite" aria-label="Token chips"></section>
+      </main>
+
+      <footer>
+        <p>Counts update as you type. Nothing leaves the browser.</p>
+      </footer>
+    </div>
+
+    <noscript>
+      <p>This page needs JavaScript to split text into tokens.</p>
+    </noscript>
+
+    <script type="module" src="./js/app.js"></script>
+  </body>
+</html>
